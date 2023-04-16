@@ -1,0 +1,63 @@
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVR
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error
+import seaborn as sns
+from sklearn.model_selection import GridSearchCV, train_test_split
+
+#load data
+generation_data = pd.read_csv('Plant_1_Generation_Data.csv')
+weather_data = pd.read_csv('Plant_1_Weather_Sensor_Data.csv')
+
+#Format datetime columns and merge Data Frames
+generation_data['DATE_TIME'] = pd.to_datetime(generation_data["DATE_TIME"])
+weather_data['DATE_TIME'] = pd.to_datetime(weather_data["DATE_TIME"])
+
+df = pd.merge(generation_data.drop(columns=['PLANT_ID']), weather_data.drop(columns=['PLANT_ID', 'SOURCE_KEY']), on='DATE_TIME')
+
+#Looking for null and missing values
+df.isnull().sum()
+
+#Convert 'SOURCE_KEY' to numerical type
+encoder = LabelEncoder()
+df['SOURCE_KEY_NUMBER'] = encoder.fit_transform(df['SOURCE_KEY'])
+
+#Select the features
+df_ml = df.copy()
+X = df[['MODULE_TEMPERATURE', 'AMBIENT_TEMPERATURE', 'IRRADIATION']]
+y = df['AC_POWER']
+
+
+#Splitting the dataset into train set and test set
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size= 0.2, random_state=42)
+
+#The svm regressor
+svr = SVR()
+
+#Train the model 
+svr.fit(X_train, y_train)
+
+#Make predictions on the test data
+y_pred = svr.predict(X_test)
+
+#GridsearchCV
+param_grid = {'C': [0.1, 1, 10, 100],
+              'gamma': [0.1, 0.01, 0.001, 0.0001],
+              'kernel': ['rbf']}
+
+
+grid_search = GridSearchCV(svr, param_grid, refit = True, verbose= 3)
+
+# Fit the GridSearchCV object to the training data
+grid_search.fit(X_train, y_train)
+
+# Print the best hyperparameters found
+print("Best hyperparameters: ", grid_search.best_params_)
+
+# Evaluate the best model on the test data
+best_model = grid_search.best_estimator_
+test_accuracy = best_model
+print(grid_search.best_estimator_)
